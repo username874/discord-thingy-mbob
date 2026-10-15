@@ -2,58 +2,404 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Private Discord Chat</title>
-    <style>
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #18181f;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171923">
+  <title>Private Discord Chat</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, sans-serif;
+      background: #171923;
+      color: #f3f4f6;
+    }
 
-        .container {
-            width: 90%;
-            max-width: 500px;
-            padding: 32px;
-            text-align: center;
-            background: #252530;
-            border-radius: 16px;
-            box-sizing: border-box;
-        }
+    * { box-sizing: border-box; }
 
-        h1 {
-            margin-top: 0;
-            color: #a5b4fc;
-        }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
 
-        p {
-            color: #c4c4d0;
-            line-height: 1.6;
-        }
+    .app {
+      width: min(100%, 760px);
+      background: #222533;
+      border: 1px solid #393e50;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 18px 60px #0004;
+    }
 
-        .status {
-            display: inline-block;
-            margin-top: 12px;
-            padding: 8px 12px;
-            border-radius: 20px;
-            background: #343445;
-            color: #a5b4fc;
-            font-size: 14px;
-        }
-    </style>
+    header {
+      padding: 22px;
+      background: #30364b;
+      border-bottom: 1px solid #454b60;
+    }
+
+    h1 { margin: 0 0 6px; font-size: 1.5rem; }
+    p { color: #b9bfd0; }
+
+    header p { margin: 0; }
+
+    .panel { padding: 24px; }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    input, textarea, button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 9px;
+      border: 1px solid #4b5268;
+      background: #171923;
+      color: #f3f4f6;
+      font: inherit;
+    }
+
+    textarea { resize: vertical; min-height: 70px; }
+
+    button {
+      border: 0;
+      background: #6875e5;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    button:hover { background: #7c87f0; }
+    button:disabled { opacity: .6; cursor: wait; }
+
+    .secondary {
+      width: auto;
+      padding: 8px 12px;
+      background: #454b60;
+      margin: 0;
+    }
+
+    .hidden { display: none !important; }
+
+    .status {
+      min-height: 24px;
+      margin: 12px 0 0;
+      font-size: .92rem;
+    }
+
+    .messages {
+      height: min(52vh, 480px);
+      min-height: 220px;
+      overflow-y: auto;
+      padding: 16px;
+      background: #191c27;
+      border-radius: 10px;
+      border: 1px solid #383d4e;
+    }
+
+    .message {
+      padding: 11px 12px;
+      margin-bottom: 10px;
+      background: #292e40;
+      border-radius: 9px;
+      overflow-wrap: anywhere;
+    }
+
+    .message-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 5px;
+    }
+
+    .sender { font-weight: 700; color: #aab5ff; }
+    .time { font-size: .78rem; color: #a5aabe; }
+    .content { white-space: pre-wrap; }
+
+    .empty { text-align: center; padding: 30px 8px; color: #a5aabe; }
+
+    .chat-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .chat-toolbar p { margin: 0; font-size: .9rem; }
+
+    form { margin-top: 16px; }
+
+    .hint { font-size: .85rem; line-height: 1.5; }
+
+    @media (max-width: 480px) {
+      body { padding: 8px; }
+      .panel { padding: 14px; }
+      header { padding: 18px; }
+      .message-top { flex-direction: column; gap: 3px; }
+    }
+  </style>
 </head>
 <body>
-    <main class="container">
-        <h1>Private Discord Chat</h1>
-        <p>A private place to chat with your Discord community.</p>
-        <div class="status">Website created successfully!</div>
-    </main>
+  <main class="app">
+    <header>
+      <h1>Private Discord Chat</h1>
+      <p>Chat with your community from your browser.</p>
+    </header>
+
+    <section id="loginPanel" class="panel">
+      <h2>Welcome back</h2>
+      <p>Enter the shared chat password to continue.</p>
+
+      <form id="loginForm">
+        <label for="password">Chat password</label>
+        <input id="password" type="password"
+               autocomplete="current-password"
+               maxlength="200" required>
+        <button id="loginButton" type="submit">Log in</button>
+      </form>
+
+      <p id="loginStatus" class="status" role="status"></p>
+    </section>
+
+    <section id="chatPanel" class="panel hidden">
+      <div class="chat-toolbar">
+        <div>
+          <strong>Live chat</strong>
+          <p>Messages from the last five minutes</p>
+        </div>
+        <button id="logoutButton" class="secondary" type="button">
+          Log out
+        </button>
+      </div>
+
+      <div id="messages" class="messages"
+           role="log" aria-live="polite" aria-label="Chat messages">
+        <p class="empty">Loading messages...</p>
+      </div>
+
+      <form id="sendForm">
+        <label for="messageInput">Your message</label>
+        <textarea id="messageInput" maxlength="1500"
+                  placeholder="Write a message..."
+                  required></textarea>
+        <button id="sendButton" type="submit">Send to Discord</button>
+      </form>
+
+      <p id="chatStatus" class="status" role="status"></p>
+      <p class="hint">
+        Messages are sent to the configured Discord channel through the bot.
+        Please be respectful and don't share private information.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    // Your Render backend URL.
+    const API = "https://discord-web-chat-backend.onrender.com";
+
+    const loginPanel = document.getElementById("loginPanel");
+    const chatPanel = document.getElementById("chatPanel");
+    const loginForm = document.getElementById("loginForm");
+    const passwordInput = document.getElementById("password");
+    const loginButton = document.getElementById("loginButton");
+    const loginStatus = document.getElementById("loginStatus");
+    const chatStatus = document.getElementById("chatStatus");
+    const messagesBox = document.getElementById("messages");
+    const sendForm = document.getElementById("sendForm");
+    const messageInput = document.getElementById("messageInput");
+    const sendButton = document.getElementById("sendButton");
+
+    // Keep the session token in memory, not in website source or localStorage.
+    let sessionToken = null;
+    let refreshTimer = null;
+    let latestMessageIds = "";
+
+    async function apiRequest(path, options = {}) {
+      const headers = {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      };
+
+      if (sessionToken) {
+        headers.Authorization = `Bearer ${sessionToken}`;
+      }
+
+      const response = await fetch(API + path, {
+        ...options,
+        headers
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const error = new Error(
+          data.error || `Request failed (${response.status})`
+        );
+        error.status = response.status;
+        throw error;
+      }
+
+      return data;
+    }
+
+    function showLogin(message = "") {
+      sessionToken = null;
+
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = null;
+
+      chatPanel.classList.add("hidden");
+      loginPanel.classList.remove("hidden");
+      loginStatus.textContent = message;
+      passwordInput.value = "";
+      latestMessageIds = "";
+    }
+
+    function showChat() {
+      loginPanel.classList.add("hidden");
+      chatPanel.classList.remove("hidden");
+      chatStatus.textContent = "";
+      refreshMessages();
+      refreshTimer = setInterval(refreshMessages, 5000);
+    }
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      loginButton.disabled = true;
+      loginStatus.textContent = "Logging in...";
+
+      try {
+        const data = await apiRequest("/login", {
+          method: "POST",
+          body: JSON.stringify({ password: passwordInput.value })
+        });
+
+        sessionToken = data.token;
+        passwordInput.value = "";
+        showChat();
+      } catch (error) {
+        loginStatus.textContent =
+          error.status === 429
+            ? "Too many attempts. Please wait before trying again."
+            : error.message;
+      } finally {
+        loginButton.disabled = false;
+      }
+    });
+
+    function renderMessages(messages) {
+      const signature = messages.map(m => m.id).join(",");
+
+      // Avoid resetting the scroll position if the messages haven't changed.
+      if (signature === latestMessageIds) return;
+      latestMessageIds = signature;
+
+      const wasNearBottom =
+        messagesBox.scrollHeight - messagesBox.scrollTop -
+        messagesBox.clientHeight < 80;
+
+      messagesBox.replaceChildren();
+
+      if (!messages.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "No messages in the last five minutes. Say hello!";
+        messagesBox.appendChild(empty);
+        return;
+      }
+
+      for (const message of messages) {
+        const item = document.createElement("article");
+        item.className = "message";
+
+        const top = document.createElement("div");
+        top.className = "message-top";
+
+        const sender = document.createElement("span");
+        sender.className = "sender";
+        sender.textContent = message.sender || "Unknown";
+
+        const time = document.createElement("time");
+        time.className = "time";
+
+        const date = new Date(message.created_at);
+        time.dateTime = message.created_at;
+        time.textContent = Number.isNaN(date.getTime())
+          ? ""
+          : date.toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit"
+            });
+
+        const content = document.createElement("div");
+        content.className = "content";
+        content.textContent = message.content;
+
+        top.append(sender, time);
+        item.append(top, content);
+        messagesBox.appendChild(item);
+      }
+
+      if (wasNearBottom) {
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+      }
+    }
+
+    async function refreshMessages() {
+      if (!sessionToken) return;
+
+      try {
+        const data = await apiRequest("/api/messages");
+        renderMessages(data.messages || []);
+        chatStatus.textContent = "";
+      } catch (error) {
+        if (error.status === 401) {
+          showLogin("Your session expired. Please log in again.");
+          return;
+        }
+
+        chatStatus.textContent =
+          "Couldn't refresh messages. Retrying automatically...";
+      }
+    }
+
+    sendForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const content = messageInput.value.trim();
+      if (!content) return;
+
+      sendButton.disabled = true;
+      chatStatus.textContent = "Sending message...";
+
+      try {
+        await apiRequest("/api/messages", {
+          method: "POST",
+          body: JSON.stringify({ content })
+        });
+
+        messageInput.value = "";
+        chatStatus.textContent = "Message sent!";
+        await refreshMessages();
+      } catch (error) {
+        if (error.status === 401) {
+          showLogin("Your session expired. Please log in again.");
+          return;
+        }
+
+        chatStatus.textContent = error.message;
+      } finally {
+        sendButton.disabled = false;
+      }
+    });
+
+    document.getElementById("logoutButton").addEventListener("click", () => {
+      showLogin("You have been logged out.");
+    });
+  </script>
 </body>
 </html>
-
