@@ -400,9 +400,7 @@
         messagesBox.appendChild(item);
       }
 
-      if (wasNearBottom) {
-        messagesBox.scrollTop = messagesBox.scrollHeight;
-      }
+     messagesBox.scrollTop = messagesBox.scrollHeight;
     }
 
     async function refreshMessages() {
