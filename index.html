@@ -484,6 +484,7 @@ author.appendChild(sender);
     }
 
    
+
 async function refreshMessages() {
   if (!sessionToken) return;
 
@@ -499,6 +500,12 @@ async function refreshMessages() {
       showLogin("Your session expired. Please log in again.");
       return;
     }
+
+    chatStatus.textContent =
+      "Couldn't refresh messages. Retrying automatically...";
+  }
+}
+
 
 
     sendForm.addEventListener("submit", async (event) => {
