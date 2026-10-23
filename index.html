@@ -248,6 +248,47 @@
     let sessionToken = null;
     let refreshTimer = null;
     let latestMessageIds = "";
+    
+const originalPageTitle = document.title;
+let unreadMessageCount = 0;
+let knownMessageIds = null;
+
+function trackNewMessages(messages) {
+  // First load establishes a baseline without counting old messages.
+  if (knownMessageIds === null) {
+    knownMessageIds = new Set(
+      messages.map(message => String(message.id))
+    );
+    return;
+  }
+
+  let newMessageCount = 0;
+
+  for (const message of messages) {
+    const id = String(message.id);
+
+    if (!knownMessageIds.has(id)) {
+      knownMessageIds.add(id);
+      newMessageCount++;
+    }
+  }
+
+  // Only count messages received while the tab is hidden.
+  if (document.hidden && newMessageCount > 0) {
+    unreadMessageCount += newMessageCount;
+    document.title =
+      `(${unreadMessageCount}) ${originalPageTitle}`;
+  }
+}
+
+// Clear the counter when the user returns to the tab.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    unreadMessageCount = 0;
+    document.title = originalPageTitle;
+  }
+});
+
 
     async function apiRequest(path, options = {}) {
       const headers = {
