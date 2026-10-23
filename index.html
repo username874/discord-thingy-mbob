@@ -362,7 +362,7 @@ document.addEventListener("visibilitychange", () => {
         loginButton.disabled = false;
       }
     });
-
+    
     function renderMessages(messages) {
      const signature = messages.map(m =>
   `${m.id}:${m.avatar_url || ""}:${JSON.stringify(m.attachments || [])}:${m.content || ""}`
@@ -483,13 +483,28 @@ author.appendChild(sender);
      messagesBox.scrollTop = messagesBox.scrollHeight;
     }
 
-    async function refreshMessages() {
-      if (!sessionToken) return;
+   
+async function refreshMessages() {
+  if (!sessionToken) return;
 
-      try {
-        const data = await apiRequest("/api/messages");
-        renderMessages(data.messages || []);
-        chatStatus.textContent = "";
+  try {
+    const data = await apiRequest("/api/messages");
+
+    trackNewMessages(data.messages || []);
+    renderMessages(data.messages || []);
+
+    chatStatus.textContent = "";
+  } catch (error) {
+    if (error.status === 401) {
+      showLogin("Your session expired. Please log in again.");
+      return;
+    }
+
+    chatStatus.textContent =
+      "Couldn't refresh messages. Retrying automatically...";
+  }
+}
+
       } catch (error) {
         if (error.status === 401) {
           showLogin("Your session expired. Please log in again.");
