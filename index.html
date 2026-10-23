@@ -500,21 +500,6 @@ async function refreshMessages() {
       return;
     }
 
-    chatStatus.textContent =
-      "Couldn't refresh messages. Retrying automatically...";
-  }
-}
-
-      } catch (error) {
-        if (error.status === 401) {
-          showLogin("Your session expired. Please log in again.");
-          return;
-        }
-
-        chatStatus.textContent =
-          "Couldn't refresh messages. Retrying automatically...";
-      }
-    }
 
     sendForm.addEventListener("submit", async (event) => {
       event.preventDefault();
