@@ -65,6 +65,22 @@
     .chat-toolbar p { margin: 0; font-size: .9rem; }
     form { margin-top: 16px; }
     .hint { font-size: .85rem; line-height: 1.5; }
+
+    /* Image attachments */
+    .attach-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+    .attach-row button { margin-top: 0; }
+    .previews { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .preview { position: relative; }
+    .preview img {
+      display: block; width: 72px; height: 72px; object-fit: cover;
+      border-radius: 8px; border: 1px solid #4b5268;
+    }
+    .preview button {
+      position: absolute; top: -6px; right: -6px; width: 22px; height: 22px;
+      padding: 0; margin: 0; border-radius: 50%; background: #454b60;
+      font-size: .8rem; line-height: 1;
+    }
+
     @media (max-width: 480px) {
       body { padding: 8px; }
       .panel { padding: 14px; }
@@ -101,7 +117,12 @@
       </div>
       <form id="sendForm">
         <label for="messageInput">Your message</label>
-        <textarea id="messageInput" maxlength="1500" placeholder="Write a message..." required></textarea>
+        <textarea id="messageInput" maxlength="1500" placeholder="Write a message..."></textarea>
+        <input id="imageInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple class="hidden">
+        <div class="attach-row">
+          <button id="attachButton" class="secondary" type="button">📎 Attach image</button>
+        </div>
+        <div id="previews" class="previews"></div>
         <button id="sendButton" type="submit">Send to Discord</button>
       </form>
       <p id="chatStatus" class="status" role="status"></p>
@@ -123,10 +144,17 @@
     const sendForm = document.getElementById("sendForm");
     const messageInput = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendButton");
+    const imageInput = document.getElementById("imageInput");
+    const attachButton = document.getElementById("attachButton");
+    const previews = document.getElementById("previews");
+
+    const MAX_IMAGES = 4;
+    const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
     let sessionToken = null;
     let refreshTimer = null;
     let latestMessageIds = "";
+    let pendingImages = [];
 
     // Notification counter for messages received while this tab is hidden.
     const originalPageTitle = document.title;
@@ -163,10 +191,11 @@
     });
 
     async function apiRequest(path, options = {}) {
-      const headers = {
-        "Content-Type": "application/json",
-        ...(options.headers || {})
-      };
+      const headers = { ...(options.headers || {}) };
+      // For FormData the browser must set the multipart boundary itself.
+      if (!(options.body instanceof FormData)) {
+        headers["Content-Type"] = "application/json";
+      }
       if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
 
       const response = await fetch(API + path, { ...options, headers });
@@ -180,6 +209,76 @@
       return data;
     }
 
+    // ---------- Image attachments ----------
+    function renderPreviews() {
+      previews.replaceChildren();
+      pendingImages.forEach((entry, index) => {
+        const wrap = document.createElement("div");
+        wrap.className = "preview";
+
+        const img = document.createElement("img");
+        img.src = entry.url;
+        img.alt = entry.file.name;
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "✕";
+        remove.setAttribute("aria-label", "Remove image");
+        remove.addEventListener("click", () => {
+          URL.revokeObjectURL(entry.url);
+          pendingImages.splice(index, 1);
+          renderPreviews();
+        });
+
+        wrap.append(img, remove);
+        previews.appendChild(wrap);
+      });
+    }
+
+    function addImages(files) {
+      for (const file of files) {
+        if (!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) {
+          chatStatus.textContent = "Only PNG, JPEG, GIF and WebP images are allowed.";
+          continue;
+        }
+        if (file.size > MAX_IMAGE_BYTES) {
+          chatStatus.textContent = `${file.name} is larger than 8 MB.`;
+          continue;
+        }
+        if (pendingImages.length >= MAX_IMAGES) {
+          chatStatus.textContent = `You can attach up to ${MAX_IMAGES} images.`;
+          break;
+        }
+        pendingImages.push({ file, url: URL.createObjectURL(file) });
+      }
+      renderPreviews();
+    }
+
+    function clearImages() {
+      pendingImages.forEach(entry => URL.revokeObjectURL(entry.url));
+      pendingImages = [];
+      imageInput.value = "";
+      renderPreviews();
+    }
+
+    attachButton.addEventListener("click", () => imageInput.click());
+
+    imageInput.addEventListener("change", () => {
+      addImages(imageInput.files);
+      imageInput.value = "";
+    });
+
+    // Paste images straight into the message box.
+    messageInput.addEventListener("paste", (event) => {
+      const files = [...(event.clipboardData?.files || [])]
+        .filter(file => file.type.startsWith("image/"));
+      if (files.length) {
+        event.preventDefault();
+        addImages(files);
+      }
+    });
+
+    // ---------- Login / logout ----------
     function showLogin(message = "") {
       sessionToken = null;
       if (refreshTimer) clearInterval(refreshTimer);
@@ -189,6 +288,7 @@
       loginStatus.textContent = message;
       passwordInput.value = "";
       latestMessageIds = "";
+      clearImages();
     }
 
     function showChat() {
@@ -221,6 +321,7 @@
       }
     });
 
+    // ---------- Rendering messages ----------
     function renderMessages(messages) {
       const signature = messages.map(m =>
         `${m.id}:${m.avatar_url || ""}:${JSON.stringify(m.attachments || [])}:${m.content || ""}`
@@ -229,10 +330,6 @@
       // Don't rebuild the chat if the messages haven't changed.
       if (signature === latestMessageIds) return;
       latestMessageIds = signature;
-
-      const wasNearBottom =
-        messagesBox.scrollHeight - messagesBox.scrollTop -
-        messagesBox.clientHeight < 80;
 
       messagesBox.replaceChildren();
 
@@ -314,7 +411,7 @@
         messagesBox.appendChild(item);
       }
 
-      // Preserve the existing behavior of scrolling to the newest message.
+      // Scroll to the newest message.
       messagesBox.scrollTop = messagesBox.scrollHeight;
     }
 
@@ -336,19 +433,22 @@
       }
     }
 
+    // ---------- Sending ----------
     sendForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const content = messageInput.value.trim();
-      if (!content) return;
+      if (!content && pendingImages.length === 0) return;
+
+      const body = new FormData();
+      body.append("content", content);
+      pendingImages.forEach(entry => body.append("images", entry.file));
 
       sendButton.disabled = true;
-      chatStatus.textContent = "Sending message...";
+      chatStatus.textContent = pendingImages.length ? "Uploading..." : "Sending message...";
       try {
-        await apiRequest("/api/messages", {
-          method: "POST",
-          body: JSON.stringify({ content })
-        });
+        await apiRequest("/api/messages", { method: "POST", body });
         messageInput.value = "";
+        clearImages();
         chatStatus.textContent = "Message sent!";
         await refreshMessages();
       } catch (error) {
