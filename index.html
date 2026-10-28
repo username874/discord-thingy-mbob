@@ -46,6 +46,7 @@
       border: 1px solid #383d4e;
     }
     .message { padding: 11px 12px; margin-bottom: 10px; background: #292e40; border-radius: 9px; overflow-wrap: anywhere; }
+    .message.mine { background: #333a55; }
     .message-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 5px; }
     .sender { font-weight: 700; color: #aab5ff; }
     .message-author { display: flex; align-items: center; gap: 9px; min-width: 0; }
@@ -81,6 +82,39 @@
       font-size: .8rem; line-height: 1;
     }
 
+    /* Tabs */
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab { margin: 0; background: #292e40; flex: 1; }
+    .tab:hover { background: #343a52; }
+    .tab.active { background: #6875e5; }
+
+    /* Direct messages */
+    .dm-search { position: relative; margin-bottom: 12px; }
+    .dm-results {
+      position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5;
+      background: #292e40; border: 1px solid #4b5268; border-radius: 10px;
+      padding: 6px; box-shadow: 0 10px 30px #0006; max-height: 300px; overflow-y: auto;
+    }
+    .dm-item {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      margin: 0 0 6px; padding: 10px; text-align: left;
+      background: #292e40; font-weight: 400; border: 1px solid #383d4e;
+    }
+    .dm-results .dm-item { border: 0; margin: 0; }
+    .dm-item:hover { background: #343a52; }
+    .dm-item-text { min-width: 0; flex: 1; }
+    .dm-item-name { font-weight: 700; color: #aab5ff; display: block; }
+    .dm-item-preview {
+      display: block; color: #a5aabe; font-size: .85rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .badge {
+      background: #e5534b; color: #fff; border-radius: 999px;
+      font-size: .75rem; font-weight: 700; padding: 2px 8px; flex-shrink: 0;
+    }
+    .dm-thread-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .dm-thread-top strong { overflow-wrap: anywhere; }
+
     @media (max-width: 480px) {
       body { padding: 8px; }
       .panel { padding: 14px; }
@@ -112,21 +146,59 @@
         <div><strong>Live chat</strong><p>Messages from the last five minutes</p></div>
         <button id="logoutButton" class="secondary" type="button">Log out</button>
       </div>
-      <div id="messages" class="messages" role="log" aria-live="polite" aria-label="Chat messages">
-        <p class="empty">Loading messages...</p>
+
+      <div class="tabs" role="tablist">
+        <button id="tabChat" class="tab active" type="button" role="tab" aria-selected="true">Chat</button>
+        <button id="tabDms" class="tab" type="button" role="tab" aria-selected="false">DMs</button>
       </div>
-      <form id="sendForm">
-        <label for="messageInput">Your message</label>
-        <textarea id="messageInput" maxlength="1500" placeholder="Write a message..."></textarea>
-        <input id="imageInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple class="hidden">
-        <div class="attach-row">
-          <button id="attachButton" class="secondary" type="button">📎 Attach image</button>
+
+      <!-- Public chat -->
+      <div id="chatView">
+        <div id="messages" class="messages" role="log" aria-live="polite" aria-label="Chat messages">
+          <p class="empty">Loading messages...</p>
         </div>
-        <div id="previews" class="previews"></div>
-        <button id="sendButton" type="submit">Send to Discord</button>
-      </form>
-      <p id="chatStatus" class="status" role="status"></p>
-      <p class="hint">Messages are sent to the configured Discord channel through the bot. Please be respectful and don't share private information.</p>
+        <form id="sendForm">
+          <label for="messageInput">Your message</label>
+          <textarea id="messageInput" maxlength="1500" placeholder="Write a message..."></textarea>
+          <input id="imageInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple class="hidden">
+          <div class="attach-row">
+            <button id="attachButton" class="secondary" type="button">📎 Attach image</button>
+          </div>
+          <div id="previews" class="previews"></div>
+          <button id="sendButton" type="submit">Send to Discord</button>
+        </form>
+        <p id="chatStatus" class="status" role="status"></p>
+        <p class="hint">Messages are sent to the configured Discord channel through the bot. Please be respectful and don't share private information.</p>
+      </div>
+
+      <!-- Direct messages -->
+      <div id="dmView" class="hidden">
+        <div id="dmListView">
+          <div class="dm-search">
+            <input id="dmSearch" type="search" placeholder="Search server members to message..." autocomplete="off" maxlength="32" aria-label="Search server members">
+            <div id="dmResults" class="dm-results hidden"></div>
+          </div>
+          <div id="dmConversations">
+            <p class="empty">No DMs yet. Search for a friend above to start one.</p>
+          </div>
+        </div>
+
+        <div id="dmThreadView" class="hidden">
+          <div class="dm-thread-top">
+            <button id="dmBack" class="secondary" type="button">← Back</button>
+            <strong id="dmTitle"></strong>
+          </div>
+          <div id="dmMessages" class="messages" role="log" aria-live="polite" aria-label="Direct messages"></div>
+          <form id="dmForm">
+            <label for="dmInput">Private message</label>
+            <textarea id="dmInput" maxlength="1500" placeholder="Write a private message..." required></textarea>
+            <button id="dmSendButton" type="submit">Send DM</button>
+          </form>
+        </div>
+
+        <p id="dmStatus" class="status" role="status"></p>
+        <p class="hint">DMs are sent by the bot, and the person replies to the bot in Discord. Anyone logged in to this site can see these DMs, and they're deleted after 24 hours.</p>
+      </div>
     </section>
   </main>
 
@@ -148,6 +220,23 @@
     const attachButton = document.getElementById("attachButton");
     const previews = document.getElementById("previews");
 
+    const tabChat = document.getElementById("tabChat");
+    const tabDms = document.getElementById("tabDms");
+    const chatView = document.getElementById("chatView");
+    const dmView = document.getElementById("dmView");
+    const dmListView = document.getElementById("dmListView");
+    const dmThreadView = document.getElementById("dmThreadView");
+    const dmSearch = document.getElementById("dmSearch");
+    const dmResults = document.getElementById("dmResults");
+    const dmConversations = document.getElementById("dmConversations");
+    const dmBack = document.getElementById("dmBack");
+    const dmTitle = document.getElementById("dmTitle");
+    const dmMessages = document.getElementById("dmMessages");
+    const dmForm = document.getElementById("dmForm");
+    const dmInput = document.getElementById("dmInput");
+    const dmSendButton = document.getElementById("dmSendButton");
+    const dmStatus = document.getElementById("dmStatus");
+
     const MAX_IMAGES = 4;
     const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -155,6 +244,15 @@
     let refreshTimer = null;
     let latestMessageIds = "";
     let pendingImages = [];
+
+    // DM state.
+    let activeTab = "chat";
+    let dmUserId = null;
+    let dmConversationList = [];
+    let dmLastSeen = {};
+    let dmListSignature = "";
+    let dmThreadSignature = "";
+    let dmSearchTimer = null;
 
     // Notification counter for messages received while this tab is hidden.
     const originalPageTitle = document.title;
@@ -207,6 +305,25 @@
         throw error;
       }
       return data;
+    }
+
+    function formatTime(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime())
+        ? ""
+        : date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    }
+
+    function makeAvatar(url) {
+      if (typeof url !== "string" || !url.startsWith("https://")) return null;
+      const avatar = document.createElement("img");
+      avatar.className = "discord-avatar";
+      avatar.alt = "";
+      avatar.width = 36;
+      avatar.height = 36;
+      avatar.src = url;
+      avatar.addEventListener("error", () => avatar.remove(), { once: true });
+      return avatar;
     }
 
     // ---------- Image attachments ----------
@@ -278,6 +395,340 @@
       }
     });
 
+    // ---------- Tabs ----------
+    function setTab(name) {
+      activeTab = name;
+      chatView.classList.toggle("hidden", name !== "chat");
+      dmView.classList.toggle("hidden", name !== "dms");
+      tabChat.classList.toggle("active", name === "chat");
+      tabDms.classList.toggle("active", name === "dms");
+      tabChat.setAttribute("aria-selected", String(name === "chat"));
+      tabDms.setAttribute("aria-selected", String(name === "dms"));
+
+      // Hidden panels can't scroll, so jump to the newest message when shown again.
+      if (name === "chat") messagesBox.scrollTop = messagesBox.scrollHeight;
+      if (name === "dms") {
+        dmMessages.scrollTop = dmMessages.scrollHeight;
+        refreshDms();
+      }
+      updateDmBadge();
+    }
+
+    tabChat.addEventListener("click", () => setTab("chat"));
+    tabDms.addEventListener("click", () => setTab("dms"));
+
+    // ---------- Direct messages ----------
+    function isUnread(conversation) {
+      if (conversation.last_direction !== "in") return false;
+      // The conversation you're looking at right now counts as read.
+      if (activeTab === "dms" && dmUserId === conversation.user_id) return false;
+      return conversation.last_id > (dmLastSeen[conversation.user_id] || 0);
+    }
+
+    function updateDmBadge() {
+      const unread = dmConversationList.filter(isUnread).length;
+      tabDms.textContent = unread ? `DMs (${unread})` : "DMs";
+    }
+
+    function renderConversations() {
+      const signature = JSON.stringify(
+        dmConversationList.map(c => [c.user_id, c.last_id, isUnread(c)])
+      );
+      if (signature === dmListSignature) return;
+      dmListSignature = signature;
+
+      dmConversations.replaceChildren();
+
+      if (!dmConversationList.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "No DMs yet. Search for a friend above to start one.";
+        dmConversations.appendChild(empty);
+        return;
+      }
+
+      for (const conversation of dmConversationList) {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "dm-item";
+
+        const avatar = makeAvatar(conversation.avatar_url);
+        if (avatar) item.appendChild(avatar);
+
+        const text = document.createElement("span");
+        text.className = "dm-item-text";
+
+        const name = document.createElement("span");
+        name.className = "dm-item-name";
+        name.textContent = conversation.name || "Unknown";
+
+        const preview = document.createElement("span");
+        preview.className = "dm-item-preview";
+        preview.textContent =
+          (conversation.last_direction === "out" ? "You: " : "") +
+          (conversation.last_content || "");
+
+        text.append(name, preview);
+        item.appendChild(text);
+
+        if (isUnread(conversation)) {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = "New";
+          item.appendChild(badge);
+        }
+
+        item.addEventListener("click", () =>
+          openThread(conversation.user_id, conversation.name)
+        );
+        dmConversations.appendChild(item);
+      }
+    }
+
+    async function refreshDms() {
+      if (!sessionToken) return;
+
+      try {
+        const data = await apiRequest("/api/dms");
+        dmConversationList = data.conversations || [];
+        renderConversations();
+        updateDmBadge();
+
+        if (activeTab === "dms" && dmUserId) await refreshThread();
+      } catch (error) {
+        if (error.status === 401) {
+          showLogin("Your session expired. Please log in again.");
+          return;
+        }
+        if (activeTab === "dms") {
+          dmStatus.textContent = "Couldn't refresh DMs. Retrying automatically...";
+        }
+      }
+    }
+
+    function renderThread(messages, name) {
+      const signature = messages.map(m => `${m.id}:${m.content}`).join(",");
+      if (signature === dmThreadSignature) return;
+      dmThreadSignature = signature;
+
+      dmMessages.replaceChildren();
+
+      if (!messages.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = `No messages yet. Say hi to ${name}!`;
+        dmMessages.appendChild(empty);
+        return;
+      }
+
+      for (const message of messages) {
+        const item = document.createElement("article");
+        item.className = "message" + (message.direction === "out" ? " mine" : "");
+
+        const top = document.createElement("div");
+        top.className = "message-top";
+
+        const sender = document.createElement("span");
+        sender.className = "sender";
+        sender.textContent = message.direction === "out" ? "You (via bot)" : name;
+
+        const time = document.createElement("time");
+        time.className = "time";
+        time.dateTime = message.created_at;
+        time.textContent = formatTime(message.created_at);
+
+        const content = document.createElement("div");
+        content.className = "content";
+        content.textContent = message.content || "";
+
+        top.append(sender, time);
+        item.append(top, content);
+        dmMessages.appendChild(item);
+      }
+
+      dmMessages.scrollTop = dmMessages.scrollHeight;
+    }
+
+    async function refreshThread() {
+      if (!sessionToken || !dmUserId) return;
+
+      const requestedUser = dmUserId;
+      const data = await apiRequest(`/api/dms/${requestedUser}`);
+
+      // Ignore the response if you've switched to another conversation meanwhile.
+      if (requestedUser !== dmUserId) return;
+
+      const messages = data.messages || [];
+      if (messages.length) {
+        dmLastSeen[requestedUser] = Math.max(
+          dmLastSeen[requestedUser] || 0,
+          ...messages.map(m => m.id)
+        );
+      }
+
+      const conversation = dmConversationList.find(c => c.user_id === requestedUser);
+      renderThread(messages, conversation?.name || dmTitle.textContent);
+      updateDmBadge();
+      dmStatus.textContent = "";
+    }
+
+    function openThread(userId, name) {
+      dmUserId = userId;
+      dmThreadSignature = "";
+      dmTitle.textContent = name || "Unknown";
+      dmMessages.replaceChildren();
+      dmStatus.textContent = "";
+      dmInput.value = "";
+      closeSearchResults();
+      dmSearch.value = "";
+
+      dmListView.classList.add("hidden");
+      dmThreadView.classList.remove("hidden");
+
+      refreshThread().catch((error) => {
+        if (error.status === 401) {
+          showLogin("Your session expired. Please log in again.");
+          return;
+        }
+        dmStatus.textContent = error.message;
+      });
+      updateDmBadge();
+      renderConversations();
+    }
+
+    function closeThread() {
+      dmUserId = null;
+      dmThreadView.classList.add("hidden");
+      dmListView.classList.remove("hidden");
+      dmStatus.textContent = "";
+      dmListSignature = "";
+      refreshDms();
+    }
+
+    dmBack.addEventListener("click", closeThread);
+
+    function closeSearchResults() {
+      dmResults.classList.add("hidden");
+      dmResults.replaceChildren();
+    }
+
+    function renderSearchResults(members) {
+      dmResults.replaceChildren();
+      dmResults.classList.remove("hidden");
+
+      if (!members.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "No matching members.";
+        dmResults.appendChild(empty);
+        return;
+      }
+
+      for (const member of members) {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "dm-item";
+
+        const avatar = makeAvatar(member.avatar_url);
+        if (avatar) item.appendChild(avatar);
+
+        const text = document.createElement("span");
+        text.className = "dm-item-text";
+
+        const name = document.createElement("span");
+        name.className = "dm-item-name";
+        name.textContent = member.name;
+
+        const handle = document.createElement("span");
+        handle.className = "dm-item-preview";
+        handle.textContent = "@" + member.username;
+
+        text.append(name, handle);
+        item.appendChild(text);
+        item.addEventListener("click", () => openThread(member.id, member.name));
+        dmResults.appendChild(item);
+      }
+    }
+
+    dmSearch.addEventListener("input", () => {
+      clearTimeout(dmSearchTimer);
+      const query = dmSearch.value.trim();
+
+      if (!query) {
+        closeSearchResults();
+        return;
+      }
+
+      dmSearchTimer = setTimeout(async () => {
+        try {
+          const data = await apiRequest(`/api/members?q=${encodeURIComponent(query)}`);
+          // Ignore results for an older search.
+          if (dmSearch.value.trim() !== query) return;
+          renderSearchResults(data.members || []);
+          dmStatus.textContent = "";
+        } catch (error) {
+          if (error.status === 401) {
+            showLogin("Your session expired. Please log in again.");
+            return;
+          }
+          dmStatus.textContent = error.message;
+        }
+      }, 300);
+    });
+
+    // Close the results when clicking elsewhere.
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".dm-search")) closeSearchResults();
+    });
+
+    dmForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const content = dmInput.value.trim();
+      if (!content || !dmUserId) return;
+
+      dmSendButton.disabled = true;
+      dmStatus.textContent = "Sending DM...";
+      try {
+        await apiRequest(`/api/dms/${dmUserId}`, {
+          method: "POST",
+          body: JSON.stringify({ content })
+        });
+        dmInput.value = "";
+        dmStatus.textContent = "DM sent!";
+        await refreshDms();
+      } catch (error) {
+        if (error.status === 401) {
+          showLogin("Your session expired. Please log in again.");
+          return;
+        }
+        dmStatus.textContent = error.message;
+      } finally {
+        dmSendButton.disabled = false;
+      }
+    });
+
+    function resetDms() {
+      clearTimeout(dmSearchTimer);
+      dmUserId = null;
+      dmConversationList = [];
+      dmLastSeen = {};
+      dmListSignature = "";
+      dmThreadSignature = "";
+      dmSearch.value = "";
+      dmInput.value = "";
+      dmStatus.textContent = "";
+      closeSearchResults();
+      dmConversations.replaceChildren();
+      const empty = document.createElement("p");
+      empty.className = "empty";
+      empty.textContent = "No DMs yet. Search for a friend above to start one.";
+      dmConversations.appendChild(empty);
+      dmMessages.replaceChildren();
+      dmThreadView.classList.add("hidden");
+      dmListView.classList.remove("hidden");
+      tabDms.textContent = "DMs";
+    }
+
     // ---------- Login / logout ----------
     function showLogin(message = "") {
       sessionToken = null;
@@ -289,14 +740,21 @@
       passwordInput.value = "";
       latestMessageIds = "";
       clearImages();
+      resetDms();
+      setTab("chat");
     }
 
     function showChat() {
       loginPanel.classList.add("hidden");
       chatPanel.classList.remove("hidden");
       chatStatus.textContent = "";
+      setTab("chat");
       refreshMessages();
-      refreshTimer = setInterval(refreshMessages, 5000);
+      refreshDms();
+      refreshTimer = setInterval(() => {
+        refreshMessages();
+        refreshDms();
+      }, 5000);
     }
 
     loginForm.addEventListener("submit", async (event) => {
@@ -351,17 +809,8 @@
         const author = document.createElement("div");
         author.className = "message-author";
 
-        const avatar = document.createElement("img");
-        avatar.className = "discord-avatar";
-        avatar.alt = "";
-        avatar.width = 36;
-        avatar.height = 36;
-
-        if (typeof message.avatar_url === "string" && message.avatar_url.startsWith("https://")) {
-          avatar.src = message.avatar_url;
-          avatar.addEventListener("error", () => avatar.remove(), { once: true });
-          author.appendChild(avatar);
-        }
+        const avatar = makeAvatar(message.avatar_url);
+        if (avatar) author.appendChild(avatar);
 
         const sender = document.createElement("span");
         sender.className = "sender";
@@ -370,11 +819,8 @@
 
         const time = document.createElement("time");
         time.className = "time";
-        const date = new Date(message.created_at);
         time.dateTime = message.created_at;
-        time.textContent = Number.isNaN(date.getTime())
-          ? ""
-          : date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+        time.textContent = formatTime(message.created_at);
 
         const content = document.createElement("div");
         content.className = "content";
