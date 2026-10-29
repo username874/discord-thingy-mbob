@@ -102,36 +102,6 @@
       font-size: .8rem; line-height: 1;
     }
 
-    /* Polls */
-    .poll-form { margin-top: 0; }
-    .poll-option-input { margin-top: 8px; }
-    .poll-form select {
-      padding: 8px 10px; border-radius: 9px; border: 1px solid #4b5268;
-      background: #171923; color: #f3f4f6; font: inherit;
-    }
-    .poll {
-      background: #292e40; border-radius: 10px; padding: 14px; margin-bottom: 12px;
-    }
-    .poll-question { font-weight: 700; margin: 0 0 4px; overflow-wrap: anywhere; }
-    .poll-meta { font-size: .8rem; color: #a5aabe; margin: 0 0 8px; }
-    .poll-option {
-      position: relative; display: flex; justify-content: space-between; align-items: center;
-      gap: 10px; width: 100%; margin: 6px 0 0; padding: 10px 12px; overflow: hidden;
-      background: #171923; border: 1px solid #4b5268; text-align: left; font-weight: 400;
-    }
-    .poll-option:hover { background: #171923; border-color: #6875e5; }
-    .poll-option.mine { border-color: #6875e5; }
-    .poll-option:disabled { cursor: default; opacity: .85; }
-    .poll-option:disabled:hover { border-color: #4b5268; }
-    .poll-option.mine:disabled:hover { border-color: #6875e5; }
-    .poll-bar {
-      position: absolute; left: 0; top: 0; bottom: 0; background: #6875e5;
-      opacity: .35; pointer-events: none; transition: width .3s;
-    }
-    .poll-label, .poll-count { position: relative; }
-    .poll-label { overflow-wrap: anywhere; }
-    .poll-count { white-space: nowrap; color: #b9bfd0; font-size: .85rem; }
-
     /* Tabs */
     .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
     .tab { margin: 0; background: #292e40; flex: 1; }
@@ -200,7 +170,6 @@
       <div class="tabs" role="tablist">
         <button id="tabChat" class="tab active" type="button" role="tab" aria-selected="true">Chat</button>
         <button id="tabDms" class="tab" type="button" role="tab" aria-selected="false">DMs</button>
-        <button id="tabPolls" class="tab" type="button" role="tab" aria-selected="false">Polls</button>
       </div>
 
       <!-- Public chat -->
@@ -250,31 +219,6 @@
         <p id="dmStatus" class="status" role="status"></p>
         <p class="hint">DMs are sent by the bot, and the person replies to the bot in Discord. Anyone logged in to this site can see these DMs, and they're deleted after 24 hours.</p>
       </div>
-
-      <!-- Polls -->
-      <div id="pollsView" class="hidden">
-        <form id="pollForm" class="poll-form">
-          <label for="pollQuestion">Ask a question</label>
-          <input id="pollQuestion" maxlength="200" placeholder="What should we do tonight?" autocomplete="off">
-          <div id="pollOptions"></div>
-          <div class="attach-row">
-            <button id="pollAddOption" class="secondary" type="button">+ Add option</button>
-            <select id="pollDuration" aria-label="How long the poll stays open">
-              <option value="5">Open 5 minutes</option>
-              <option value="30">Open 30 minutes</option>
-              <option value="60" selected>Open 1 hour</option>
-              <option value="360">Open 6 hours</option>
-              <option value="1440">Open 24 hours</option>
-            </select>
-          </div>
-          <button id="pollCreateButton" type="submit">Create poll</button>
-        </form>
-        <p id="pollStatus" class="status" role="status"></p>
-        <div id="pollList">
-          <p class="empty">No polls yet. Create one above!</p>
-        </div>
-        <p class="hint">New polls are announced in the Discord channel, but voting happens here on the website. You can change your vote until the poll ends, and finished polls disappear after an hour.</p>
-      </div>
     </section>
   </main>
 
@@ -313,17 +257,6 @@
     const dmSendButton = document.getElementById("dmSendButton");
     const dmStatus = document.getElementById("dmStatus");
 
-    const tabPolls = document.getElementById("tabPolls");
-    const pollsView = document.getElementById("pollsView");
-    const pollForm = document.getElementById("pollForm");
-    const pollQuestion = document.getElementById("pollQuestion");
-    const pollOptions = document.getElementById("pollOptions");
-    const pollAddOption = document.getElementById("pollAddOption");
-    const pollDuration = document.getElementById("pollDuration");
-    const pollCreateButton = document.getElementById("pollCreateButton");
-    const pollStatus = document.getElementById("pollStatus");
-    const pollList = document.getElementById("pollList");
-
     const MAX_IMAGES = 4;
     const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -340,14 +273,6 @@
     let dmListSignature = "";
     let dmThreadSignature = "";
     let dmSearchTimer = null;
-
-    // Poll state.
-    const POLL_MIN_OPTIONS = 2;
-    const POLL_MAX_OPTIONS = 6;
-    let pollSignature = "";
-    let pollItems = [];
-    let pollTick = 0;
-    let voterIdFallback = null;
 
     // Notification counter for messages received while this tab is hidden.
     const originalPageTitle = document.title;
@@ -495,13 +420,10 @@
       activeTab = name;
       chatView.classList.toggle("hidden", name !== "chat");
       dmView.classList.toggle("hidden", name !== "dms");
-      pollsView.classList.toggle("hidden", name !== "polls");
       tabChat.classList.toggle("active", name === "chat");
       tabDms.classList.toggle("active", name === "dms");
-      tabPolls.classList.toggle("active", name === "polls");
       tabChat.setAttribute("aria-selected", String(name === "chat"));
       tabDms.setAttribute("aria-selected", String(name === "dms"));
-      tabPolls.setAttribute("aria-selected", String(name === "polls"));
 
       // Hidden panels can't scroll, so jump to the newest message when shown again.
       if (name === "chat") messagesBox.scrollTop = messagesBox.scrollHeight;
@@ -509,13 +431,11 @@
         dmMessages.scrollTop = dmMessages.scrollHeight;
         refreshDms();
       }
-      if (name === "polls") refreshPolls();
       updateDmBadge();
     }
 
     tabChat.addEventListener("click", () => setTab("chat"));
     tabDms.addEventListener("click", () => setTab("dms"));
-    tabPolls.addEventListener("click", () => setTab("polls"));
 
     // ---------- Direct messages ----------
     function isUnread(conversation) {
@@ -829,227 +749,6 @@
       tabDms.textContent = "DMs";
     }
 
-    // ---------- Polls ----------
-    // A random ID stored in this browser lets the server keep one vote per person.
-    function getVoterId() {
-      const valid = /^[A-Za-z0-9-]{16,64}$/;
-      try {
-        const saved = localStorage.getItem("chatVoterId");
-        if (saved && valid.test(saved)) return saved;
-        const created = makeRandomId();
-        localStorage.setItem("chatVoterId", created);
-        return created;
-      } catch {
-        if (!voterIdFallback) voterIdFallback = makeRandomId();
-        return voterIdFallback;
-      }
-    }
-
-    function makeRandomId() {
-      const bytes = new Uint8Array(16);
-      crypto.getRandomValues(bytes);
-      return [...bytes].map(b => b.toString(16).padStart(2, "0")).join("");
-    }
-
-    function addPollOptionInput() {
-      const count = pollOptions.children.length;
-      if (count >= POLL_MAX_OPTIONS) return;
-
-      const input = document.createElement("input");
-      input.className = "poll-option-input";
-      input.maxLength = 80;
-      input.autocomplete = "off";
-      input.placeholder = `Option ${count + 1}`;
-      input.setAttribute("aria-label", `Option ${count + 1}`);
-      pollOptions.appendChild(input);
-
-      pollAddOption.classList.toggle(
-        "hidden",
-        pollOptions.children.length >= POLL_MAX_OPTIONS
-      );
-    }
-
-    function resetPollForm() {
-      pollQuestion.value = "";
-      pollOptions.replaceChildren();
-      pollDuration.value = "60";
-      for (let i = 0; i < POLL_MIN_OPTIONS; i++) addPollOptionInput();
-    }
-
-    pollAddOption.addEventListener("click", addPollOptionInput);
-
-    function updatePollBadge() {
-      const waiting = pollItems.filter(p => !p.closed && p.my_vote === null).length;
-      tabPolls.textContent = waiting ? `Polls (${waiting})` : "Polls";
-    }
-
-    function renderPolls(polls) {
-      pollItems = polls;
-      updatePollBadge();
-
-      const signature = JSON.stringify(
-        polls.map(p => [p.id, p.counts, p.my_vote, p.closed])
-      );
-      if (signature === pollSignature) return;
-      pollSignature = signature;
-
-      pollList.replaceChildren();
-
-      if (!polls.length) {
-        const empty = document.createElement("p");
-        empty.className = "empty";
-        empty.textContent = "No polls yet. Create one above!";
-        pollList.appendChild(empty);
-        return;
-      }
-
-      for (const poll of polls) {
-        const card = document.createElement("article");
-        card.className = "poll";
-
-        const question = document.createElement("p");
-        question.className = "poll-question";
-        question.style.color = "#f3f4f6";
-        question.textContent = poll.question;
-
-        const meta = document.createElement("p");
-        meta.className = "poll-meta";
-        const votesText = `${poll.total} vote${poll.total === 1 ? "" : "s"}`;
-        meta.textContent = poll.closed
-          ? `Poll ended · ${votesText}`
-          : `Ends ${formatTime(poll.expires_at)} · ${votesText}`;
-
-        card.append(question, meta);
-
-        poll.options.forEach((text, index) => {
-          const percent = poll.total
-            ? Math.round((poll.counts[index] / poll.total) * 100)
-            : 0;
-
-          const option = document.createElement("button");
-          option.type = "button";
-          option.className = "poll-option" + (poll.my_vote === index ? " mine" : "");
-          option.disabled = poll.closed;
-
-          const bar = document.createElement("span");
-          bar.className = "poll-bar";
-          bar.style.width = percent + "%";
-
-          const label = document.createElement("span");
-          label.className = "poll-label";
-          label.textContent = (poll.my_vote === index ? "✓ " : "") + text;
-
-          const count = document.createElement("span");
-          count.className = "poll-count";
-          count.textContent = `${poll.counts[index]} · ${percent}%`;
-
-          option.append(bar, label, count);
-          option.addEventListener("click", () => castVote(poll.id, index));
-          card.appendChild(option);
-        });
-
-        pollList.appendChild(card);
-      }
-    }
-
-    async function refreshPolls() {
-      if (!sessionToken) return;
-
-      try {
-        const data = await apiRequest(
-          `/api/polls?voter=${encodeURIComponent(getVoterId())}`
-        );
-        renderPolls(data.polls || []);
-        if (activeTab === "polls") pollStatus.textContent = "";
-      } catch (error) {
-        if (error.status === 401) {
-          showLogin("Your session expired. Please log in again.");
-          return;
-        }
-        if (activeTab === "polls") {
-          pollStatus.textContent = "Couldn't refresh polls. Retrying automatically...";
-        }
-      }
-    }
-
-    async function castVote(pollId, optionIndex) {
-      pollStatus.textContent = "Saving your vote...";
-      try {
-        await apiRequest(`/api/polls/${pollId}/vote`, {
-          method: "POST",
-          body: JSON.stringify({ option: optionIndex, voter_id: getVoterId() })
-        });
-        pollStatus.textContent = "Vote saved!";
-        await refreshPolls();
-      } catch (error) {
-        if (error.status === 401) {
-          showLogin("Your session expired. Please log in again.");
-          return;
-        }
-        pollStatus.textContent = error.message;
-        await refreshPolls();
-        pollStatus.textContent = error.message;
-      }
-    }
-
-    pollForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const question = pollQuestion.value.trim();
-      const options = [...pollOptions.children]
-        .map(input => input.value.trim())
-        .filter(Boolean);
-
-      if (!question) {
-        pollStatus.textContent = "Write a question first.";
-        return;
-      }
-      if (options.length < POLL_MIN_OPTIONS) {
-        pollStatus.textContent = `Add at least ${POLL_MIN_OPTIONS} options.`;
-        return;
-      }
-
-      pollCreateButton.disabled = true;
-      pollStatus.textContent = "Creating poll...";
-      try {
-        await apiRequest("/api/polls", {
-          method: "POST",
-          body: JSON.stringify({
-            question,
-            options,
-            minutes: Number(pollDuration.value)
-          })
-        });
-        resetPollForm();
-        pollStatus.textContent = "Poll created and announced in Discord!";
-        await refreshPolls();
-      } catch (error) {
-        if (error.status === 401) {
-          showLogin("Your session expired. Please log in again.");
-          return;
-        }
-        pollStatus.textContent = error.message;
-      } finally {
-        pollCreateButton.disabled = false;
-      }
-    });
-
-    function resetPolls() {
-      pollSignature = "";
-      pollItems = [];
-      pollTick = 0;
-      pollStatus.textContent = "";
-      pollList.replaceChildren();
-      const empty = document.createElement("p");
-      empty.className = "empty";
-      empty.textContent = "No polls yet. Create one above!";
-      pollList.appendChild(empty);
-      resetPollForm();
-      tabPolls.textContent = "Polls";
-    }
-
-    resetPollForm();
-
     // ---------- Login / logout ----------
     function showLogin(message = "") {
       sessionToken = null;
@@ -1062,7 +761,6 @@
       latestMessageIds = "";
       clearImages();
       resetDms();
-      resetPolls();
       setTab("chat");
     }
 
@@ -1073,13 +771,9 @@
       setTab("chat");
       refreshMessages();
       refreshDms();
-      refreshPolls();
       refreshTimer = setInterval(() => {
         refreshMessages();
         refreshDms();
-        // Poll results update every 5s while viewing them, otherwise about every 30s.
-        pollTick++;
-        if (activeTab === "polls" || pollTick % 6 === 0) refreshPolls();
       }, 5000);
     }
 
