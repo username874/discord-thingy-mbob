@@ -61,6 +61,26 @@
       display: block; max-width: 100%; width: fit-content; height: auto;
       max-height: 360px; object-fit: contain; border-radius: 8px;
     }
+    /* YouTube videos */
+    .video-box { margin-top: 10px; }
+    .video-frame {
+      position: relative; width: min(100%, 300px); aspect-ratio: 9 / 16;
+      border-radius: 10px; overflow: hidden; background: #000;
+    }
+    .video-frame.wide { width: min(100%, 460px); aspect-ratio: 16 / 9; }
+    .video-frame iframe, .video-frame .video-thumb {
+      position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+    }
+    .video-thumb {
+      padding: 0; margin: 0; border-radius: 0; background: #000 center / cover no-repeat;
+    }
+    .video-thumb:hover { background-color: #000; filter: brightness(1.15); }
+    .video-play {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: 56px; height: 56px; border-radius: 50%; background: #000a;
+      color: #fff; font-size: 1.6rem; display: grid; place-items: center;
+      pointer-events: none;
+    }
     .empty { text-align: center; padding: 30px 8px; color: #a5aabe; }
     .chat-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
     .chat-toolbar p { margin: 0; font-size: .9rem; }
@@ -779,6 +799,54 @@
       }
     });
 
+    // ---------- YouTube videos ----------
+    const YOUTUBE_PATTERN =
+      /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(shorts\/|watch\?(?:[^\s]*&)?v=|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/gi;
+    const MAX_VIDEOS_PER_MESSAGE = 2;
+
+    function findYouTubeVideos(text) {
+      const found = [];
+      const seen = new Set();
+      for (const match of String(text || "").matchAll(YOUTUBE_PATTERN)) {
+        const id = match[2];
+        if (seen.has(id)) continue;
+        seen.add(id);
+        found.push({ id, isShort: (match[1] || "").toLowerCase() === "shorts/" });
+        if (found.length >= MAX_VIDEOS_PER_MESSAGE) break;
+      }
+      return found;
+    }
+
+    // Shows a thumbnail first and only loads the player when clicked.
+    function makeVideoEmbed(video) {
+      const frame = document.createElement("div");
+      frame.className = "video-frame" + (video.isShort ? "" : " wide");
+
+      const thumb = document.createElement("button");
+      thumb.type = "button";
+      thumb.className = "video-thumb";
+      thumb.setAttribute("aria-label", "Play video");
+      thumb.style.backgroundImage = `url("https://i.ytimg.com/vi/${video.id}/hqdefault.jpg")`;
+
+      const play = document.createElement("span");
+      play.className = "video-play";
+      play.textContent = "▶";
+      play.setAttribute("aria-hidden", "true");
+
+      thumb.addEventListener("click", () => {
+        const player = document.createElement("iframe");
+        player.src = `https://www.youtube-nocookie.com/embed/${video.id}?autoplay=1&playsinline=1&rel=0`;
+        player.title = "YouTube video player";
+        player.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+        player.allowFullscreen = true;
+        player.referrerPolicy = "strict-origin-when-cross-origin";
+        frame.replaceChildren(player);
+      });
+
+      frame.append(thumb, play);
+      return frame;
+    }
+
     // ---------- Rendering messages ----------
     function renderMessages(messages) {
       const signature = messages.map(m =>
@@ -853,6 +921,15 @@
             attachmentBox.appendChild(image);
           }
           item.appendChild(attachmentBox);
+        }
+
+        // YouTube Shorts and video links become click-to-play players.
+        const videos = findYouTubeVideos(message.content);
+        if (videos.length) {
+          const videoBox = document.createElement("div");
+          videoBox.className = "video-box";
+          for (const video of videos) videoBox.appendChild(makeVideoEmbed(video));
+          item.appendChild(videoBox);
         }
         messagesBox.appendChild(item);
       }
