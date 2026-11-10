@@ -12,6 +12,15 @@
       background: #171923;
       color: #f3f4f6;
     }
+    /* Color themes: left is indigo, right is teal. Change these to restyle a side. */
+    :root, [data-side="left"] {
+      --accent: #6875e5; --accent-hover: #7c87f0; --accent-text: #aab5ff;
+      --accent-soft: #333a55; --header-bg: #30364b;
+    }
+    [data-side="right"] {
+      --accent: #2fa38f; --accent-hover: #46b8a4; --accent-text: #8fe3d1;
+      --accent-soft: #264a44; --header-bg: #2a4440;
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0; min-height: 100vh; display: grid;
@@ -22,7 +31,7 @@
       border: 1px solid #393e50; border-radius: 16px;
       overflow: hidden; box-shadow: 0 18px 60px #0004;
     }
-    header { padding: 22px; background: #30364b; border-bottom: 1px solid #454b60; }
+    header { padding: 22px; background: var(--header-bg); border-bottom: 1px solid #454b60; }
     h1 { margin: 0 0 6px; font-size: 1.5rem; }
     p { color: #b9bfd0; }
     header p { margin: 0; }
@@ -34,8 +43,8 @@
       color: #f3f4f6; font: inherit;
     }
     textarea { resize: vertical; min-height: 70px; }
-    button { border: 0; background: #6875e5; font-weight: 700; cursor: pointer; margin-top: 12px; }
-    button:hover { background: #7c87f0; }
+    button { border: 0; background: var(--accent); font-weight: 700; cursor: pointer; margin-top: 12px; }
+    button:hover { background: var(--accent-hover); }
     button:disabled { opacity: .6; cursor: wait; }
     .secondary { width: auto; padding: 8px 12px; background: #454b60; margin: 0; }
     .hidden { display: none !important; }
@@ -46,9 +55,9 @@
       border: 1px solid #383d4e;
     }
     .message { padding: 11px 12px; margin-bottom: 10px; background: #292e40; border-radius: 9px; overflow-wrap: anywhere; }
-    .message.mine { background: #333a55; }
+    .message.mine { background: var(--accent-soft); }
     .message-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 5px; }
-    .sender { font-weight: 700; color: #aab5ff; }
+    .sender { font-weight: 700; color: var(--accent-text); }
     .message-author { display: flex; align-items: center; gap: 9px; min-width: 0; }
     .discord-avatar {
       width: 36px; height: 36px; border-radius: 50%;
@@ -102,11 +111,20 @@
       font-size: .8rem; line-height: 1;
     }
 
+    /* Split login */
+    .login-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    .login-side {
+      margin: 0; padding: 18px; background: #292e40; border-radius: 12px;
+      border-top: 4px solid var(--accent);
+    }
+    .login-side h3 { margin: 0 0 12px; color: var(--accent-text); }
+    @media (max-width: 560px) { .login-split { grid-template-columns: 1fr; } }
+
     /* Tabs */
     .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
     .tab { margin: 0; background: #292e40; flex: 1; }
     .tab:hover { background: #343a52; }
-    .tab.active { background: #6875e5; }
+    .tab.active { background: var(--accent); }
 
     /* Direct messages */
     .dm-search { position: relative; margin-bottom: 12px; }
@@ -123,7 +141,7 @@
     .dm-results .dm-item { border: 0; margin: 0; }
     .dm-item:hover { background: #343a52; }
     .dm-item-text { min-width: 0; flex: 1; }
-    .dm-item-name { font-weight: 700; color: #aab5ff; display: block; }
+    .dm-item-name { font-weight: 700; color: var(--accent-text); display: block; }
     .dm-item-preview {
       display: block; color: #a5aabe; font-size: .85rem;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -146,24 +164,33 @@
 <body>
   <main class="app">
     <header>
-      <h1>Private Discord Chat</h1>
-      <p>Chat with your community from your browser.</p>
+      <h1>Random test site</h1>
+      <p>A thing made ny the Unofficial team.</p>
     </header>
 
     <section id="loginPanel" class="panel">
       <h2>Welcome back</h2>
-      <p>Enter the shared chat password to continue.</p>
-      <form id="loginForm">
-        <label for="password">Chat password</label>
-        <input id="password" type="password" autocomplete="current-password" maxlength="200" required>
-        <button id="loginButton" type="submit">Log in</button>
-      </form>
+      <p>Pick your side and enter your password.</p>
+      <div class="login-split">
+        <form class="login-side login-form" data-side="left">
+          <h3>Left</h3>
+          <label for="passwordLeft">Password</label>
+          <input id="passwordLeft" class="login-password" type="password" autocomplete="current-password" maxlength="200" required>
+          <button type="submit">Log in as Left</button>
+        </form>
+        <form class="login-side login-form" data-side="right">
+          <h3>Right</h3>
+          <label for="passwordRight">Password</label>
+          <input id="passwordRight" class="login-password" type="password" autocomplete="current-password" maxlength="200" required>
+          <button type="submit">Log in as Right</button>
+        </form>
+      </div>
       <p id="loginStatus" class="status" role="status"></p>
     </section>
 
     <section id="chatPanel" class="panel hidden">
       <div class="chat-toolbar">
-        <div><strong>Live chat</strong><p>Messages from the last five minutes</p></div>
+        <div><strong>Live chat</strong><p id="toolbarSub">Messages from the last five minutes</p></div>
         <button id="logoutButton" class="secondary" type="button">Log out</button>
       </div>
 
@@ -217,7 +244,7 @@
         </div>
 
         <p id="dmStatus" class="status" role="status"></p>
-        <p class="hint">DMs are sent by the bot, and the person replies to the bot in Discord. Anyone logged in to this site can see these DMs, and they're deleted after 24 hours.</p>
+        <p class="hint">DMs are sent by the bot, and the person replies to the bot in Discord. Only people who log in on your side can see these DMs, and they're deleted after 24 hours.</p>
       </div>
     </section>
   </main>
@@ -227,9 +254,9 @@
 
     const loginPanel = document.getElementById("loginPanel");
     const chatPanel = document.getElementById("chatPanel");
-    const loginForm = document.getElementById("loginForm");
-    const passwordInput = document.getElementById("password");
-    const loginButton = document.getElementById("loginButton");
+    const loginForms = [...document.querySelectorAll(".login-form")];
+    const passwordInputs = [...document.querySelectorAll(".login-password")];
+    const toolbarSub = document.getElementById("toolbarSub");
     const loginStatus = document.getElementById("loginStatus");
     const chatStatus = document.getElementById("chatStatus");
     const messagesBox = document.getElementById("messages");
@@ -757,14 +784,19 @@
       chatPanel.classList.add("hidden");
       loginPanel.classList.remove("hidden");
       loginStatus.textContent = message;
-      passwordInput.value = "";
+      passwordInputs.forEach(field => { field.value = ""; });
+      delete document.body.dataset.side;
       latestMessageIds = "";
       clearImages();
       resetDms();
       setTab("chat");
     }
 
-    function showChat() {
+    function showChat(profile = {}) {
+      document.body.dataset.side = profile.side === "right" ? "right" : "left";
+      toolbarSub.textContent = profile.name
+        ? `Signed in as ${profile.name} · Messages from the last five minutes`
+        : "Messages from the last five minutes";
       loginPanel.classList.add("hidden");
       chatPanel.classList.remove("hidden");
       chatStatus.textContent = "";
@@ -777,27 +809,33 @@
       }, 5000);
     }
 
-    loginForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      loginButton.disabled = true;
-      loginStatus.textContent = "Logging in...";
+    for (const form of loginForms) {
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const side = form.dataset.side;
+        const input = form.querySelector(".login-password");
+        const buttons = loginForms.map(f => f.querySelector("button"));
 
-      try {
-        const data = await apiRequest("/login", {
-          method: "POST",
-          body: JSON.stringify({ password: passwordInput.value })
-        });
-        sessionToken = data.token;
-        passwordInput.value = "";
-        showChat();
-      } catch (error) {
-        loginStatus.textContent = error.status === 429
-          ? "Too many attempts. Please wait before trying again."
-          : error.message;
-      } finally {
-        loginButton.disabled = false;
-      }
-    });
+        buttons.forEach(button => { button.disabled = true; });
+        loginStatus.textContent = "Logging in...";
+
+        try {
+          const data = await apiRequest("/login", {
+            method: "POST",
+            body: JSON.stringify({ password: input.value, side })
+          });
+          sessionToken = data.token;
+          passwordInputs.forEach(field => { field.value = ""; });
+          showChat({ side: data.side, name: data.name });
+        } catch (error) {
+          loginStatus.textContent = error.status === 429
+            ? "Too many attempts. Please wait before trying again."
+            : error.message;
+        } finally {
+          buttons.forEach(button => { button.disabled = false; });
+        }
+      });
+    }
 
     // ---------- YouTube videos ----------
     const YOUTUBE_PATTERN =
