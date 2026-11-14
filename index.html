@@ -90,6 +90,11 @@
       color: #fff; font-size: 1.6rem; display: grid; place-items: center;
       pointer-events: none;
     }
+    .chat-video {
+      display: block; max-width: 100%; max-height: 360px;
+      border-radius: 8px; background: #000;
+    }
+    .video-fallback { color: var(--accent-text); overflow-wrap: anywhere; }
     .empty { text-align: center; padding: 30px 8px; color: #a5aabe; }
     .chat-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
     .chat-toolbar p { margin: 0; font-size: .9rem; }
@@ -164,8 +169,8 @@
 <body>
   <main class="app">
     <header>
-      <h1>Random test site</h1>
-      <p>A thing made ny the Unofficial team.</p>
+      <h1>Private Discord Chat</h1>
+      <p>Chat with your community from your browser.</p>
     </header>
 
     <section id="loginPanel" class="panel">
@@ -885,6 +890,39 @@
       return frame;
     }
 
+    // Plays an uploaded video (mp4, webm, mov) right in the chat.
+    function makeVideoPlayer(attachment) {
+      const name = typeof attachment.name === "string" && attachment.name
+        ? attachment.name
+        : "this video";
+
+      const video = document.createElement("video");
+      video.className = "chat-video";
+      video.controls = true;
+      video.preload = "metadata";
+      video.playsInline = true;
+      video.src = attachment.url;
+      video.setAttribute("aria-label", name);
+
+      // If it can't be played (expired link, unsupported format), offer a link instead.
+      video.addEventListener("error", () => {
+        const link = document.createElement("a");
+        link.className = "video-fallback";
+        link.href = attachment.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = `Can't play ${name} here. Open it in a new tab`;
+        video.replaceWith(link);
+      }, { once: true });
+
+      return video;
+    }
+
+    function isVideoPlaying() {
+      return [...messagesBox.querySelectorAll("video.chat-video")]
+        .some(video => !video.paused && !video.ended);
+    }
+
     // ---------- Rendering messages ----------
     function renderMessages(messages) {
       const signature = messages.map(m =>
@@ -893,6 +931,10 @@
 
       // Don't rebuild the chat if the messages haven't changed.
       if (signature === latestMessageIds) return;
+
+      // Don't interrupt a video that's playing; the next refresh will catch up.
+      if (isVideoPlaying()) return;
+
       latestMessageIds = signature;
 
       messagesBox.replaceChildren();
@@ -959,6 +1001,24 @@
             attachmentBox.appendChild(image);
           }
           item.appendChild(attachmentBox);
+        }
+
+        // Uploaded videos play inline.
+        const videoAttachments = attachments.filter(attachment =>
+          attachment &&
+          typeof attachment.url === "string" &&
+          attachment.url.startsWith("https://") &&
+          typeof attachment.contentType === "string" &&
+          attachment.contentType.toLowerCase().startsWith("video/")
+        );
+
+        if (videoAttachments.length) {
+          const uploadBox = document.createElement("div");
+          uploadBox.className = "attachments";
+          for (const attachment of videoAttachments) {
+            uploadBox.appendChild(makeVideoPlayer(attachment));
+          }
+          item.appendChild(uploadBox);
         }
 
         // YouTube Shorts and video links become click-to-play players.
